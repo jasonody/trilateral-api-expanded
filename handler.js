@@ -1,45 +1,32 @@
-'use strict';
+'use strict'
 
-module.exports.command = (event, context, callback) => {
-  console.log('event: %j', event);
+const aws = require('aws-sdk')
+const uuid = require('uuid')
 
-  const response = {
-    statusCode: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
+module.exports.deleteCategory = (evt, context, callback) => {
+  console.log('delete category input event: %j', evt)
+
+  const event = {
+    id: uuid.v1(),
+    type: 'category-deleted',
+    timestamp: Date.now(),
+    tags: {
+      userId: uuid.v4(),
     },
-    body: JSON.stringify({
-      message: 'Cloud Native Development Patterns and Best Practices! Your function executed successfully!',
-      input: event,
-    }),
-  };
+    category: evt.category || 'widgets'
+  }
+  
+  console.log('delete category event: %j', event)
 
-  callback(null, response);
-};
+  const params = {
+    StreamName: process.env.STREAM_NAME,
+    PartitionKey: event.category, //Probably shouldn't be a string
+    Data: Buffer.from(JSON.stringify(event))
+  }
 
-module.exports.query = (event, context, callback) => {
-  console.log('event: %j', event);
+  const kinesis = new aws.Kinesis()
 
-  const response = {
-    statusCode: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-    },
-    body: JSON.stringify({
-      message: 'Cloud Native Development Patterns and Best Practices! Your function executed successfully!',
-      input: event,
-    }),
-  };
-
-  callback(null, response);
-};
-
-module.exports.publish = (event, context, callback) => {
-  console.log('event: %j', event);
-  callback();
-};
-
-module.exports.consume = (event, context, cb) => {
-  console.log('event: %j', event);
-  callback();
-};
+  kinesis.putRecord(params).promise()
+    .then(res => callback(null, res))
+    .catch(err => callback(err))
+}
